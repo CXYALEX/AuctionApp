@@ -12,9 +12,10 @@ BIT_LEN = 256
 def experiment():
     print("Auction Begin:")
     # prepare paremeters
-    n = 8 #number of the auction parties
-    n_commitee = 3
+    n = 4 #number of the auction parties
     max_len = 16 #length of the bid
+    n_commitee = 3
+    
     # read paremeters from smartcontract
     g, p = UtilsCrpto.construct_public_parametor(BIT_LEN)
     anvil_rpc = 'http://127.0.0.1:8545'
@@ -234,4 +235,4 @@ if __name__ == "__main__":
     # 使用 timeit 测量单次执行时间
     execution_time = timeit.timeit("experiment()", setup="from __main__ import experiment", number=100)
     average_time = execution_time / 100
-    print(f"Average execution time over 100 runs: {average_time:.4f} seconds")
+    print(f"Average execution time over 100 runs: {average_time:.4f} seconds") 
