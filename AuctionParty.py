@@ -7,6 +7,10 @@ from SigmaProtocol import SigmaProtocol
 from UTXO import Transaction
 from utils import utils
 from utils.utils_crpto import UtilsCrpto
+from Rangeproof import Rangeproof
+
+
+
 
 
 class AuctionParty():
@@ -39,12 +43,17 @@ class AuctionParty():
         self.l_x_upper = [None] * (max_length + 1)
         self.l_y_upper = [None] * (max_length + 1)
         self.l_r_overline = [None] * (max_length + 1)
-        self.dir = 1
+        self.d = 1
         self.ci = None  # commitment
         self.tx = None  # transaction
         self.encrypted_shares = None
         self.LDEI_proof = None
         self.rbi = None
+        #vir
+        self.v=None
+        # v_list
+        self.v_list =[None] * (max_length + 1)
+
 
     def get_prime_from_smart_contract(self):
         p, q = self.contract.call_get_prime()
@@ -58,8 +67,11 @@ class AuctionParty():
         g, h, pkl = self.contract.call_get_param()
         self.g = UtilsCrpto.bytes_to_int(g)
         self.h = UtilsCrpto.bytes_to_int(h)
-        for i in range(0, self.n + 1):
+        for i in range(0, self.committee_count + 1):
             self.pbk_list.append(UtilsCrpto.bytes_to_int(pkl[i]))
+
+    def reset_bid(self):
+        self.bid = 0
 
     def stage1_setup(self):
         # 实现协议的stage1的Setup阶段
@@ -78,11 +90,14 @@ class AuctionParty():
         self.encrypted_shares, self.LDEI_proof = PVSS.create_PVSS_shares(self.p, self.committee_count, n_secrete,
                                                                          secrets,
                                                                          self.pbk_list[1:])
+        
+        #计算rangeproof
+        rangeproof= Rangeproof.generate_rangeproof(self.bid,self.max_length)
 
         # result = PVSS.verify_LDEI(self.pbk_list[1:], self.p, proof.x_arr, proof.a_arr, self.committee_count,
         #                           proof.e,
         #                           proof.z_arr)
-        return self.pbk_list[1:], self.encrypted_shares, self.LDEI_proof, self.tx
+        return self.pbk_list[1:], self.encrypted_shares, self.LDEI_proof, self.tx, rangeproof
 
     def stage1_send_setup_to_smart_contract(self):
         tx_id = random.randint(1, 256)
@@ -94,20 +109,22 @@ class AuctionParty():
         return self.l_xir, self.l_x_upper
 
     def stage1_compute_parameters_from_others(self, r, l_x):
-        self.l_y_upper[r] = AnonymousVeto.compute_parameters_from_others(l_x, self.committee_count, self.pid,
+        self.l_y_upper[r] = AnonymousVeto.compute_parameters_from_others(l_x, self.n, self.pid,
                                                                          self.p)
 
     def stage2_before_first_veto(self, r):
-        vir, rr = AnonymousVeto.compute_anonymous_veto(self.l_xir[r], self.l_y_upper[r], self.bir[r], self.g, self.q,
+        self.v, rr = AnonymousVeto.compute_anonymous_veto(self.l_xir[r], self.l_y_upper[r], self.bir[r], self.g, self.q,
                                                        self.p)
-        BV_proof = SigmaProtocol.generate_proof_BV(self.g, self.q, self.p, self.h, self.cir[r], vir,
+        self.v_list[r] = self.v
+        BV_proof = SigmaProtocol.generate_proof_BV(self.g, self.q, self.p, self.h, self.cir[r], self.v,
                                                    self.l_y_upper[r], self.l_x_upper[r],
                                                    self.rir[r],
                                                    self.l_xir[r],
                                                    self.bir[r],
                                                    rr)
         self.l_r_overline[r] = rr
-        return vir, rr, BV_proof
+        
+        return self.v, rr, BV_proof
 
     def stage2_compute_before_first_veto(self, r, l_v, BV_proof_list):
         for proof in BV_proof_list:
@@ -117,22 +134,21 @@ class AuctionParty():
 
             if not t:
                 return None, False
-        result = AnonymousVeto.compute_veto_result(l_v, self.committee_count, self.p)
-        print(self.pid)
+        result = AnonymousVeto.compute_veto_result(l_v, self.n, self.p)
         if result == 1 and self.bir[r] == 0:
-            self.dir = 0
+            self.d = 0
+        
         return result, True
 
     def stage2_after_first_veto(self, r, last_veto_round):
-        if self.dir == 0:
-            vir, rr = AnonymousVeto.compute_anonymous_veto_after_first_veto(self.l_xir[r], self.l_y_upper[r], self.p)
+        if self.d == 0:
+            self.v, rr = AnonymousVeto.compute_anonymous_veto_after_first_veto(self.l_xir[r], self.l_y_upper[r], self.p)
         else:
-            vir, rr = AnonymousVeto.compute_anonymous_veto(self.l_xir[r], self.l_y_upper[r], self.bir[r], self.g,
-                                                           self.q,
-                                                           self.p)
-
+            self.v, rr = AnonymousVeto.compute_anonymous_veto(self.l_xir[r], self.l_y_upper[r], self.bir[r], self.g, self.q,
+                                                       self.p)
+        self.v_list[r] = self.v
         self.l_r_overline[r] = rr
-        av_proof = SigmaProtocol.generate_proof_AV(self.g, self.q, self.p, self.h, self.cir[r], vir,
+        av_proof = SigmaProtocol.generate_proof_AV(self.g, self.q, self.p, self.h, self.cir[r], self.v,
                                                    self.l_y_upper[r],
                                                    self.l_x_upper[r],
                                                    self.l_y_upper[last_veto_round],
@@ -141,20 +157,22 @@ class AuctionParty():
                                                    self.l_r_overline[last_veto_round], self.l_xir[r],
                                                    self.l_xir[last_veto_round],
                                                    self.bir[r],
-                                                   self.dir)
-        return vir, rr, av_proof
+                                                   self.v_list[last_veto_round],
+                                                   self.d)
+        
+        return self.v, rr, av_proof
 
     def stage2_compute_after_first_veto(self, r, l_v, av_proof_list):
         for proof in av_proof_list:
             t = SigmaProtocol.check_proof_AV(proof.g, proof.h, proof.p, proof.v, proof.c, proof.x_upper,
                                              proof.y_upper, proof.y_upper_last,
-                                             proof.x_upper_last, proof.l_gamma, proof.l_r, proof.d)
+                                             proof.x_upper_last, proof.l_gamma, proof.l_r, proof.v_last)
 
             if not t:
-                return AnonymousVeto.compute_veto_result(l_v, self.committee_count, self.p), False
-        result = AnonymousVeto.compute_veto_result(l_v, self.committee_count, self.p)
+                return AnonymousVeto.compute_veto_result(l_v, self.n, self.p), False
+        result = AnonymousVeto.compute_veto_result(l_v, self.n, self.p)
         if result == 1 and self.bir[r] == 0:
-            self.dir = 0
+            self.d = 0
         return result, True
 
     # Pi sample xir<-zq, and compute Xir = g^xir
@@ -203,3 +221,88 @@ class AuctionParty():
     def stage4_open_commitment(self, win_bid):
         if win_bid == self.bid:
             self.contract.send_openCommitment(self.pid, self.bid, self.rbi)
+
+
+
+
+
+    # for second auction: if this party is the only winner return its pid else return 0   
+    def spa_stage2_compute_before_first_veto(self, r, l_v, BV_proof_list):
+        for proof in BV_proof_list:
+            t = SigmaProtocol.check_proof_BV(proof.g, proof.h, proof.p, proof.v, proof.c, proof.x_upper, proof.y_upper,
+                                             proof.gamma1, proof.gamma2,
+                                             proof.r1, proof.r2, proof.r3, proof.r4, proof.r5)
+
+            if not t:
+                return None, False, 0
+        result = AnonymousVeto.compute_veto_result(l_v, self.n, self.p)
+        if result == 1 and self.bir[r] == 0:
+            self.d = 0
+        if result == 1 and self.spa_stage2_check_is_only_winner(r,l_v) == 0:
+            return result, True, self.pid
+        
+        return result, True,0
+    
+    
+    #if this party is the only winner return true 
+    def spa_stage2_compute_after_first_veto(self, r, l_v, av_proof_list):
+        for proof in av_proof_list:
+            t = SigmaProtocol.check_proof_AV(proof.g, proof.h, proof.p, proof.v, proof.c, proof.x_upper,
+                                             proof.y_upper, proof.y_upper_last,
+                                             proof.x_upper_last, proof.l_gamma, proof.l_r, proof.v_last)
+
+            if not t:
+                return AnonymousVeto.compute_veto_result(l_v, self.n, self.p), False,0
+        result = AnonymousVeto.compute_veto_result(l_v, self.n, self.p)
+        if result == 1 and self.bir[r] == 0:
+            self.d = 0
+        if result == 1 and self.spa_stage2_check_is_only_winner(r,l_v) == 0:
+            return result, True, self.pid
+        return result, True,0
+
+
+    def spa_stage2_check_is_only_winner(self,r,  l_v):
+        vir, _ = AnonymousVeto.compute_anonymous_veto(self.l_xir[r], self.l_y_upper[r], 0, self.g, self.q,
+                                                       self.p)
+        # print("my pid is: ", self.pid)
+        # print("length of l_v: ", l_v)
+        l_v [self.pid-1]  = vir
+        result = AnonymousVeto.compute_veto_result(l_v, self.n, self.p)
+        return result
+    
+    def stage3b_recompute_parameters_from_others_exclude_w(self, r, l_x,w):
+        self.d = 1
+        self.l_y_upper[r] = AnonymousVeto.recompute_parameters_from_others_exclude_w(l_x, self.n, self.pid,
+                                                                         self.p,w)
+        
+    def stage3b_compute_before_first_veto_exclude_w(self, r, l_v, BV_proof_list):
+        for proof in BV_proof_list:
+            if proof == None:
+                continue
+            t = SigmaProtocol.check_proof_BV(proof.g, proof.h, proof.p, proof.v, proof.c, proof.x_upper, proof.y_upper,
+                                             proof.gamma1, proof.gamma2,
+                                             proof.r1, proof.r2, proof.r3, proof.r4, proof.r5)
+
+            if not t:
+                return None, False
+        result = AnonymousVeto.compute_veto_result(l_v, self.n, self.p)
+        if result == 1 and self.bir[r] == 0:
+            self.d = 0
+        
+        return result, True
+    
+
+    def stage3b_compute_after_first_veto_exclude_w(self, r, l_v, av_proof_list):
+        for proof in av_proof_list:
+            if proof == None:
+                continue
+            t = SigmaProtocol.check_proof_AV(proof.g, proof.h, proof.p, proof.v, proof.c, proof.x_upper,
+                                             proof.y_upper, proof.y_upper_last,
+                                             proof.x_upper_last, proof.l_gamma, proof.l_r, proof.v_last)
+
+            if not t:
+                return AnonymousVeto.compute_veto_result(l_v, self.n, self.p), False
+        result = AnonymousVeto.compute_veto_result(l_v, self.n, self.p)
+        if result == 1 and self.bir[r] == 0:
+            self.d = 0
+        return result, True

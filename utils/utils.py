@@ -65,10 +65,7 @@ def generate_pedersen_params(bitsize=2048):
 
     # 随机选择h，使得h是g的一个高阶元素
     h = pow(g, number.getRandomRange(2, p - 1), p)
-    print(f"p: {p}")
-    print(f"q: {q}")
-    print(f"g: {g}")
-    print(f"h: {h}")
+
     return p, q, g, h
 
 
@@ -102,10 +99,19 @@ def compute_value(poly, x_value, p):
 
 if __name__ == '__main__':
     # 示例：将整数 42 转换为位数组
-    bid = 13
-    bit_array = int_to_bit_array(bid, 7)
-    print(f"位数组表示为：{bit_array}")
+    bid1 = 16384
+    bit_array1 = int_to_bit_array(bid1, 16)
+    print(f"位数组表示为：{bit_array1}")
+
+    bid2 = 26272
+    bit_array2 = int_to_bit_array(bid2, 16)
+    print(f"位数组表示为：{bit_array2}")
+
+    bid3 = 26273
+    bit_array3 = int_to_bit_array(bid3, 16)
+    print(f"位数组表示为：{bit_array3}")
 
     # p_value, q_value = setup(32)
     # print(f"p = {p_value}")
     # print(f"q = {q_value}")
+

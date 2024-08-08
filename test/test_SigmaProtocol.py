@@ -49,15 +49,15 @@ class SigmaProtocolTest(unittest.TestCase):
     def test_process_AV(self):
         start_time = time.time()
         test_cases = [
-            {"g": 2, "q": 17, "p": 3851, "h": 3, "rir": 21, "c": 1284, "xir": 47, "x_upper": 587, "y_upper": 311,
-             "v": 3509, "x_upper_last": 34, "y_upper_last": 31, "b": 0, "d": 1, "xir_last": 11, "rir_overline_last": 31,
-             "rir_overline": 17},
+            {"g": 2, "q": 17, "p": 3851, "h": 3, "rir": 21, "c": 1284, "xir": 47, "x_upper": 587, "y_upper": 311, 
+             "v": 3509, "x_upper_last": 34, "y_upper_last": 31, "b": 0, "v_last": 2, "xir_last": 11, "rir_overline_last": 34,
+             "rir_overline": 1234,"d":0},
+             {"g": 2, "q": 17, "p": 3851, "h": 3, "rir": 21, "c": 2568, "xir": 47, "x_upper": 587, "y_upper": 311, 
+             "v": 3509, "x_upper_last": 2048, "y_upper_last": 31, "b": 1, "v_last": 736, "xir_last": 11, "rir_overline_last": 0,
+             "rir_overline": 17, "d":0},
             {"g": 2, "q": 17, "p": 3851, "h": 3, "rir": 21, "c": 2568, "xir": 47, "x_upper": 587, "y_upper": 311,
-             "v": 138, "x_upper_last": 34, "y_upper_last": 31, "b": 1, "d": 1, "xir_last": 11, "rir_overline_last": 0,
-             "rir_overline": 17}
-            # {"g": 2, "q": 17, "p": 3851, "h": 3, "rir": 21, "c": 1284, "xir": 47, "x_upper": 587, "y_upper": 311,
-            #  "v": 3509, "x_upper_last": 34, "y_upper_last": 31, "b": 1, "d": 0, "xir_last": 11, "rir_overline_last": 31,
-            #  "rir_overline": 17}
+            "v": 138, "x_upper_last": 34, "y_upper_last": 31, "b": 1, "v_last": 2676 , "xir_last": 11, "rir_overline_last": 27,
+            "rir_overline": 17,"d":1},
         ]
         for test_case in test_cases:
             g = test_case["g"]
@@ -72,6 +72,7 @@ class SigmaProtocolTest(unittest.TestCase):
             x_upper_last = test_case["x_upper_last"]
             rir = test_case["rir"]
             b = test_case["b"]
+            v_last = test_case["v_last"]
             d = test_case["d"]
             xir = test_case["xir"]
             xir_last = test_case["xir_last"]
@@ -80,10 +81,10 @@ class SigmaProtocolTest(unittest.TestCase):
             av_proof = SigmaProtocol.generate_proof_AV(
                 g, q, p, h, c, v, y_upper, x_upper, y_upper_last, x_upper_last, rir, rir_overline,
                 rir_overline_last, xir, xir_last, b,
-                d)
+                v_last,d)
             res = SigmaProtocol.check_proof_AV(g, h, p, v, c, x_upper, y_upper, y_upper_last, x_upper_last,
                                                av_proof.l_gamma,
-                                               av_proof.l_r, d)
+                                               av_proof.l_r, v_last)
             self.assertTrue(res)
         end_time = time.time()
         execution_time = (end_time - start_time) / len(test_cases)

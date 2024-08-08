@@ -12,6 +12,7 @@ if __name__ == "__main__":
     print("Auction Begin:")
     # prepare paremeters
     n = 3
+    n_commitee = 3
     g, p = UtilsCrpto.construct_public_parametor(BIT_LEN)
     anvil_rpc = 'http://127.0.0.1:8545'
     contract_address = '0x5FbDB2315678afecb367f032d93F642f64180aa3'
@@ -38,16 +39,17 @@ if __name__ == "__main__":
     # init auction parties
     max_len = 32
     # auction_p1 = AuctionParty(1, 5 + pow(2, 31), max_len, 3)
-    auction_p1 = AuctionParty(1, 251, max_len, 3)
-    auction_p2 = AuctionParty(2, 531, max_len, 3)
-    auction_p3 = AuctionParty(3, 1233, max_len, 3)
+    auction_p1 = AuctionParty(1, 25311, max_len, 3)
+    auction_p2 = AuctionParty(2, 12431151, max_len, 3)
+    auction_p3 = AuctionParty(3, 13431231, max_len, 3)
     # auction parties stage1 sutup
     encrypted_shares = [None] * (n + 1)
     LDEI_proof = [None] * (n + 1)
     pk_list_committee = [None] * (n + 1)
-    pk_list_committee[1], encrypted_shares[1], LDEI_proof[1], tx1 = auction_p1.stage1_setup()
-    pk_list_committee[2], encrypted_shares[2], LDEI_proof[2], tx2 = auction_p2.stage1_setup()
-    pk_list_committee[3], encrypted_shares[3], LDEI_proof[3], tx3 = auction_p3.stage1_setup()
+    rangeproof = [None] * (n + 1)
+    pk_list_committee[1], encrypted_shares[1], LDEI_proof[1], tx1,rangeproof[1] = auction_p1.stage1_setup()
+    pk_list_committee[2], encrypted_shares[2], LDEI_proof[2], tx2,rangeproof[2] = auction_p2.stage1_setup()
+    pk_list_committee[3], encrypted_shares[3], LDEI_proof[3], tx3,rangeproof[3] = auction_p3.stage1_setup()
     # commitee setup verification
     LDEI_result = [None] * (n + 1)
     sig_committee = [None] * (n + 1)
@@ -55,11 +57,11 @@ if __name__ == "__main__":
         result = [None] * (n + 1)
         sig = [None] * (n + 1)
         result[1], sig[1] = committee_p1.setup_verification(tx1, pk_list_committee[i], n, encrypted_shares[i],
-                                                            LDEI_proof[i])
+                                                            LDEI_proof[i],rangeproof[i])
         result[2], sig[2] = committee_p2.setup_verification(tx1, pk_list_committee[i], n, encrypted_shares[i],
-                                                            LDEI_proof[i])
+                                                            LDEI_proof[i],rangeproof[i])
         result[3], sig[3] = committee_p3.setup_verification(tx1, pk_list_committee[i], n, encrypted_shares[i],
-                                                            LDEI_proof[i])
+                                                            LDEI_proof[i],rangeproof[i])
         assert result[1] and result[2] and result[3], "LDEI_proof is not true"
         LDEI_result[i] = result
         sig_committee[i] = sig
@@ -115,6 +117,8 @@ if __name__ == "__main__":
     before_first_veto_round = last_veto_round + 1
 
     for r in range(before_first_veto_round, max_len + 1):
+        if r == 11: 
+            print("round 11:")
         l_vir[1], l_rr[1], AV_proof_list[1] = auction_p1.stage2_after_first_veto(r, last_veto_round)
         l_vir[2], l_rr[2], AV_proof_list[2] = auction_p2.stage2_after_first_veto(r, last_veto_round)
         l_vir[3], l_rr[3], AV_proof_list[3] = auction_p3.stage2_after_first_veto(r, last_veto_round)
@@ -122,7 +126,9 @@ if __name__ == "__main__":
         veto[r], AV_result_1 = auction_p1.stage2_compute_after_first_veto(r, l_vir[1:], AV_proof_list[1:])
         veto[r], AV_result_2 = auction_p2.stage2_compute_after_first_veto(r, l_vir[1:], AV_proof_list[1:])
         veto[r], AV_result_3 = auction_p3.stage2_compute_after_first_veto(r, l_vir[1:], AV_proof_list[1:])
-        # assert AV_result, "AV proof is not true"
+
+        assert AV_result_2, "AV proof is not true"
+
         if veto[r] == 1:
             last_veto_round = r
     winner_bid = utils.bit_array_to_int(veto[1:])

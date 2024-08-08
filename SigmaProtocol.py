@@ -23,7 +23,7 @@ class BV_Proof:
 
 
 class AV_Proof:
-    def __init__(self, g, h, p, v, c, x_upper, y_upper, y_upper_last, x_upper_last, l_gamma, l_r, d):
+    def __init__(self, g, h, p, v, c, x_upper, y_upper, y_upper_last, x_upper_last, l_gamma, l_r, v_last):
         self.g = g
         self.h = h
         self.p = p
@@ -35,7 +35,7 @@ class AV_Proof:
         self.y_upper_last = y_upper_last
         self.l_gamma = l_gamma
         self.l_r = l_r
-        self.d = d
+        self.v_last = v_last
 
 
 class SigmaProtocol:
@@ -114,11 +114,11 @@ class SigmaProtocol:
     @staticmethod
     def generate_proof_AV(g, q, p, h, c, v, y_upper, x_upper, y_upper_last, x_upper_last, rir, rir_overline,
                           rir_overline_last, xir, xir_last, b,
-                          d):
+                          v_last,d ):
         alpha = 0
         if b == 0:
             alpha = 1
-        elif b == 1 and d == 1:
+        elif b == 1 and d == 1:    ## v_last => d
             alpha = 2
         else:
             alpha = 3
@@ -138,20 +138,20 @@ class SigmaProtocol:
         l_t[2] = (pow(x_upper, l_w[0], p) * pow(g, l_v[1], p)) % p  # t3
         a = (c * mod_inverse(g, p)) % p
         l_t[3] = (pow(a, l_w[1], p) * pow(h, l_v[2], p)) % p
-        l_t[4] = (pow(d, l_w[1], p) * pow(g, l_v[3], p)) % p
+        l_t[4] = (pow(v_last, l_w[1], p) * pow(g, l_v[3], p)) % p
         l_t[5] = (pow(v, l_w[1], p) * pow(g, l_v[4], p)) % p
         l_t[6] = (pow(a, l_w[2], p) * pow(h, l_v[5], p)) % p  # t7
-        l_t[7] = (pow(d, l_w[2], p) * pow(y_upper_last, l_v[6], p)) % p  # t8
+        l_t[7] = (pow(v_last, l_w[2], p) * pow(y_upper_last, l_v[6], p)) % p  # t8
         l_t[8] = (pow(x_upper_last, l_w[2], p) * pow(g, l_v[6], p)) % p  # t9
         l_t[9] = (pow(v, l_w[2], p) * pow(y_upper, l_v[7], p)) % p  # t10
         l_t[10] = (pow(x_upper, l_w[2], p) * pow(g, l_v[7], p)) % p  # 11
 
         # compute hash value
         # step 2
-        merged_string = str(h) + str(c) + str(y_upper) + str(v) + str(g) + str(x_upper) + str(a) + str(d) + str(
+        merged_string = str(h) + str(c) + str(y_upper) + str(v) + str(g) + str(x_upper) + str(a) + str(v_last) + str(
             y_upper_last) + str(x_upper_last) + str(l_t[0]) + str(l_t[1]) + str(l_t[2]) + str(l_t[3]) + str(
             l_t[4]) + str(l_t[5]) + str(l_t[6]) + \
-                        str(l_t[7]) + str(l_t[8]) + str(l_t[9]) + str(l_t[10])
+                        str(l_t[7]) + str(l_t[8]) + str(l_t[9]) + str(l_t[10]) 
         hash_hex = SHA256.new(merged_string.encode()).hexdigest()
         h_upper = int(hash_hex, 16) % p
 
@@ -185,35 +185,31 @@ class SigmaProtocol:
         l_r[8] = (l_v[6] - l_gamma[alpha - 1] * x7)
         l_r[9] = (l_v[7] - l_gamma[alpha - 1] * x8)
         l_r[10] = (l_v[7] - l_gamma[alpha - 1] * x8)
-
-        return AV_Proof(g, h, p, v, c, x_upper, y_upper, y_upper_last, x_upper_last, l_gamma, l_r, d)
+        return AV_Proof(g, h, p, v, c, x_upper, y_upper, y_upper_last, x_upper_last, l_gamma, l_r, v_last)
 
     @staticmethod
-    def check_proof_AV(g, h, p, v, c, x_upper, y_upper, y_upper_last, x_upper_last, l_gamma, l_r, d):
+    def check_proof_AV(g, h, p, v, c, x_upper, y_upper, y_upper_last, x_upper_last, l_gamma, l_r, v_last):
         a = (c * mod_inverse(g, p)) % p
+        l_t_new = [0] * 11
         # re-constructing the commitments
-        t1_new = (pow(c, l_gamma[0], p) * pow(h, l_r[0], p)) % p
-        t2_new = (pow(v, l_gamma[0], p) * pow(y_upper, l_r[1], p)) % p
-        print("x_upper", x_upper)
-        print("gamma1", l_gamma[0])
-        print("g", g)
-        print("r3", l_r[2])
-        t3_new = (pow(x_upper, l_gamma[0], p) * pow(g, l_r[2], p)) % p
-        t4_new = (pow(a, l_gamma[1], p) * pow(h, l_r[3], p)) % p
-        t5_new = (pow(d, l_gamma[1], p) * pow(g, l_r[4], p)) % p
-        t6_new = (pow(v, l_gamma[1], p) * pow(g, l_r[5], p)) % p
-        t7_new = (pow(a, l_gamma[2], p) * pow(h, l_r[6], p)) % p
-        t8_new = (pow(d, l_gamma[2], p) * pow(y_upper_last, l_r[7], p)) % p
-        t9_new = (pow(x_upper_last, l_gamma[2], p) * pow(g, l_r[8], p)) % p
-        t10_new = (pow(v, l_gamma[2], p) * pow(y_upper, l_r[9], p)) % p
-        t11_new = (pow(x_upper, l_gamma[2], p) * pow(g, l_r[10], p)) % p
+        l_t_new[0] = (pow(c, l_gamma[0], p) * pow(h, l_r[0], p)) % p
+        l_t_new[1] = (pow(v, l_gamma[0], p) * pow(y_upper, l_r[1], p)) % p
+        l_t_new[2] = (pow(x_upper, l_gamma[0], p) * pow(g, l_r[2], p)) % p
+        l_t_new[3] = (pow(a, l_gamma[1], p) * pow(h, l_r[3], p)) % p
+        l_t_new[4] = (pow(v_last, l_gamma[1], p) * pow(g, l_r[4], p)) % p
+        l_t_new[5] = (pow(v, l_gamma[1], p) * pow(g, l_r[5], p)) % p
+        l_t_new[6] = (pow(a, l_gamma[2], p) * pow(h, l_r[6], p)) % p
+        l_t_new[7] = (pow(v_last, l_gamma[2], p) * pow(y_upper_last, l_r[7], p)) % p
+        l_t_new[8] = (pow(x_upper_last, l_gamma[2], p) * pow(g, l_r[8], p)) % p
+        l_t_new[9] = (pow(v, l_gamma[2], p) * pow(y_upper, l_r[9], p)) % p
+        l_t_new[10] = (pow(x_upper, l_gamma[2], p) * pow(g, l_r[10], p)) % p
 
         # compute hash value
         # step 2
-        merged_string = str(h) + str(c) + str(y_upper) + str(v) + str(g) + str(x_upper) + str(a) + str(d) + str(
-            y_upper_last) + str(x_upper_last) + str(t1_new) + str(t2_new) + str(t3_new) + str(t4_new) + str(
-            t5_new) + str(t6_new) + str(t7_new) + \
-                        str(t8_new) + str(t9_new) + str(t10_new) + str(t11_new)
+        merged_string = str(h) + str(c) + str(y_upper) + str(v) + str(g) + str(x_upper) + str(a) + str(v_last) + str(
+            y_upper_last) + str(x_upper_last) + str(l_t_new[0]) + str(l_t_new[1]) + str(l_t_new[2]) + str(l_t_new[3]) + str(
+            l_t_new[4]) + str(l_t_new[5]) + str(l_t_new[6]) + \
+                        str(l_t_new[7]) + str(l_t_new[8]) + str(l_t_new[9]) + str(l_t_new[10])
         hash_hex = SHA256.new(merged_string.encode()).hexdigest()
         h_upper = int(hash_hex, 16) % p
 

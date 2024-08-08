@@ -3,6 +3,7 @@ from hashlib import sha256
 from Interaction_SC.AuctionSC import AuctionSC
 from PVSS import PVSS
 from utils.utils_crpto import UtilsCrpto
+from Rangeproof import Rangeproof
 
 
 class CommitteeParty:
@@ -22,9 +23,13 @@ class CommitteeParty:
         pk = UtilsCrpto.int_to_bytes(self.pub_key)
         self.contract.send_set_pkcList(self.sid, pk)
 
-    def setup_verification(self, tx, pki, n, encrypted_shares, LDEI_proof):
+    def setup_verification(self, tx, pki, n, encrypted_shares, LDEI_proof,rangeproof):
         # Verify shares correctness with LDEI
         if not self._verify_shares_correctness_with_LDEI(n, pki, LDEI_proof):
+            return False, None
+        
+        #Verify rangeproof
+        if not Rangeproof.verify_rangeproof(rangeproof):
             return False, None
 
         # Verify NIZK CC

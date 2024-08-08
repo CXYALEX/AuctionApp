@@ -74,8 +74,36 @@ class AnonymousVeto:
     def compute_veto_result(l_v, n, p):
         value = 1
         for i in range(n):
+            if l_v[i] == None:
+                continue
             value = value * l_v[i] % p
         if value == 1:
             return 0  # no veto
         else:
             return 1  # has veto
+
+    @staticmethod
+    def recompute_parameters_from_others_exclude_w(l_x, n, id, p,w):
+        """
+            Upon receive g^xi from other parties, compute Yjk. Ref: https://www.dcs.warwick.ac.uk/~fenghao/files/av_net.pdf
+            Args:
+                l_x: g^x receive from other parties
+                n: number of parties
+                id: the id of the parties, id = 1,...n
+                p: big prime of G
+                w: exluding P_w
+            Returns:
+                y_value % p
+        """
+        assert len(l_x) == n, "len of X not equals to n"
+        y_value = 1
+        for i in range(1, n + 1):
+            if i == w:
+                continue
+            elif i < id:
+                y_value = y_value * l_x[i - 1] % p
+            elif i > id:
+                y_value = y_value * (mod_inverse(l_x[i - 1], p))
+            else:
+                continue
+        return y_value % p

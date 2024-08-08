@@ -64,7 +64,7 @@ class PVSS:
             points.append((i + 1, random.randint(0, p - 1)))
         poly = interpolate(points, X)
         shares = []
-        print(points)
+        # print(points)
         for i in range(1, n + 1):
             shares.append((i, poly.subs(X, i) % p))
         return shares
@@ -110,8 +110,6 @@ class PVSS:
         merged_string = ''.join(map(str, x_arr + a_arr))
         hash_hex = SHA256.new(merged_string.encode()).hexdigest()
         e = int(hash_hex, 16) % p % pow(2, 32)
-        # e = int(SHA256.new(merged_string.encode()).digest()) % p
-        # print("p_arr:", p_arr)
         z_arr = []
         for i in range(m):
             z_arr.append(((e * p_arr[i] % p) + r_arr[i]) % p)
@@ -119,9 +117,6 @@ class PVSS:
 
     @staticmethod
     def verify_LDEI(generators, p, x_arr, a_arr, m, e, z_arr):
-        print("verify_LDEI-construct_LDEI:m", m)
-        print("verify_LDEI-generators", generators)
-        print("verify_LDEI-typeof(z_arr)", type(z_arr[0]))
         assert len(generators) == m, "the number of generators not equals to m"
         assert len(a_arr) == m, "the number of a array not equals to m"
         assert len(z_arr) == m, "the number of z array not equals to m"
@@ -132,9 +127,6 @@ class PVSS:
             # lvalue_new = ((pow(x_arr[i], e) % p) * a_arr[i]) % p
             # rvalue_new = pow(generators[i], (z_arr[i])) % p
             if lvalue != rvalue:
-                print("p:     ", p)
-                print("lvalue:", lvalue)
-                print("rvalue:", rvalue)
                 # print("rvalue_new:", rvalue_new)
                 return False
             # if (pow(x_arr[i], e, p) * a_arr[i]) % p != pow(generators[i], z_arr[i], p):
@@ -186,9 +178,6 @@ class PVSS:
         encrypted_shares = []
 
         p_arr = []
-        print("pki", pki)
-        print(len(shares))
-        print("shares:", (shares))
         for i in range(len(shares)):
             v = int(shares[i][1]) % p % pow(2, 128)  # pow(2^256,2^256,p) 不准，所以这里取了128位！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
             p_arr.append(v)
